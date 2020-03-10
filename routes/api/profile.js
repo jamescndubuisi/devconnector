@@ -5,6 +5,8 @@ const passport = require("passport");
 const jwt = require("jsonwebtoken");
 
 const validateProfileInput = require("../../validation/profile");
+const validateExperienceInput = require("../../validation/experience");
+const validateEducationInput = require("../../validation/education");
 
 //profile model
 const Profile = require("../../models/Profile");
@@ -61,6 +63,19 @@ router.get("/handle/:handle", (req, res) => {
 // @route GET api/profile/all
 // @description Get all profiles
 // @access Public
+router.get("/all", (req, res) => {
+    const errors = {};
+    Profile.find()
+        .populate("user", ["name", "avatar"])
+        .then(profiles => {
+            if (!profiles) {
+                errors.noprofile = "There is no profiles";
+                return res.status(404).json(errors);
+            }
+            res.json(profiles);
+        })
+        .catch(err => res.status(404).json({ profile: "There is no profiles" }));
+});
 
 // @route GET api/profile/user/:user_id
 // @description Get profile by user_id
@@ -131,6 +146,148 @@ router.post(
                     new Profile(profileFields).save().then(profile => res.json(profile));
                 });
             }
+        });
+    }
+);
+
+// @route Post api/profile/experience
+// @description Add expeerience to profile
+// @access Private
+router.post(
+    "/experience",
+    passport.authenticate("jwt", { session: false }),
+    (req, res) => {
+        const { errors, isValid } = validateExperienceInput(req.body);
+        console.log(isValid);
+        if (!isValid) {
+            return res.status(400).json(errors);
+        }
+        Profile.findOne({ user: req.user.id }).then(profile => {
+            const newExp = {
+                title: req.body.title,
+                company: req.body.company,
+                location: req.body.location,
+                from: req.body.from,
+                to: req.body.to,
+                current: req.body.current,
+                description: req.body.description
+            };
+            // add to experience array
+            profile.experience.unshift(newExp);
+            profile.save().then(profile => res.json(profile));
+            // .catch(errors => res.json(errors));
+        });
+    }
+);
+
+// @route Post api/profile/education
+// @description Add education to profile
+// @access Private
+router.post(
+    "/education",
+    passport.authenticate("jwt", { session: false }),
+    (req, res) => {
+        const { errors, isValid } = validateEducationInput(req.body);
+        // console.log(isValid);
+        if (!isValid) {
+            return res.status(400).json(errors);
+        }
+        Profile.findOne({ user: req.user.id }).then(profile => {
+            const newEdu = {
+                school: req.body.school,
+                degree: req.body.degree,
+                fieldofstudy: req.body.fieldofstudy,
+                from: req.body.from,
+                to: req.body.to,
+                current: req.body.current,
+                description: req.body.description
+            };
+            // add to experience array
+            profile.education.unshift(newEdu);
+            profile.save().then(profile => res.json(profile));
+            // .catch(errors => res.json(errors));
+        });
+    }
+);
+
+// @route Delete api/profile/experience
+// @description Delete experience from profile
+// @access Private
+router.delete(
+    "/experience/:exp_id",
+    passport.authenticate("jwt", { session: false }),
+    (req, res) => {
+        Profile.findOne({ user: req.user.id }).then(profile => {
+            //get remove index
+            const removeIndex = profile.experience
+                .map(item => item.id)
+                .indexOf(req.params.exp_id);
+            console.log(removeIndex);
+            console.log(req.params.exp_id);
+            if (removeIndex === -1) {
+                return res.status(404).json("Not found");
+            } else {
+                console.log(req.params.edu_id);
+                // splice out of array
+                profile.experience.splice(removeIndex, 1);
+                console.log(profile);
+                profile
+                    .save()
+                    .then(profile => res.json(profile))
+                    .catch(err => res.status(404).json(err));
+                console.log("Deleted successfully");
+            }
+            // splice out of array
+            profile.experience.splice(removeIndex, 1);
+            profile
+                .save()
+                .then(profile => res.json(profile))
+                .catch(err => res.status(404).json(err));
+        });
+    }
+);
+
+// @route Delete api/profile/education
+// @description Delete education from profile
+// @access Private
+router.delete(
+    "/education/:edu_id",
+    passport.authenticate("jwt", { session: false }),
+    (req, res) => {
+        Profile.findOne({ user: req.user.id }).then(profile => {
+            //get remove index
+            const removeIndex = profile.education
+                .map(item => item.id)
+                .indexOf(req.params.edu_id);
+            console.log(removeIndex);
+            if (removeIndex === -1) {
+                return res.status(404).json("Not found");
+            } else {
+                console.log(req.params.edu_id);
+                // splice out of array
+                profile.education.splice(removeIndex, 1);
+                console.log(profile);
+                profile
+                    .save()
+                    .then(profile => res.json(profile))
+                    .catch(err => res.status(404).json(err));
+                console.log("Deleted successfully");
+            }
+        });
+    }
+);
+
+// @route Delete api/profile/education
+// @description Delete education from profile
+// @access Private
+router.delete(
+    "/education/:edu_id",
+    passport.authenticate("jwt", { session: false }),
+    (req, res) => {
+        Profile.findOneAndRemove({ user: req.user.id }).then(() => {
+            User.findOneAndRemove({ _id: req.user.id }).then(() =>
+                res.json({ success: True })
+            );
         });
     }
 );
